@@ -8,7 +8,6 @@ venv/
 .venv/
 
 # Data & Models (too large for GitHub — add manually or use Git LFS)
-IMDB Dataset.csv
 best_model.pkl
 tfidf_vectorizer.pkl
 history_reviews.db
