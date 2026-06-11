@@ -2,6 +2,8 @@
 
 A multi-page Streamlit app that classifies IMDB movie reviews as Positive or Negative using NLP and Machine Learning.
 
+**Link**: https://nlp-project-hije2tlcgzyjyivrvmkbae.streamlit.app/
+
 ## Features
 - Classical ML: SVM + TF-IDF (best model, ~90% accuracy)
 - Advanced NLP: DistilBERT transformer (bonus)
