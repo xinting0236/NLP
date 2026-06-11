@@ -30,26 +30,46 @@ C_SIDE   = "#1E1E24"
 DB_PATH = "history_reviews.db"
 
 def init_db():
-    con = sqlite3.connect(DB_PATH)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            movie_title TEXT DEFAULT 'General',
-            review TEXT NOT NULL,
-            sentiment TEXT NOT NULL,
-            confidence REAL,
-            model_used TEXT
-        )
-    """)
-    con.commit()
-    cursor = con.cursor()
-    cursor.execute("PRAGMA table_info(history)")
-    cols = [c[1] for c in cursor.fetchall()]
-    if "movie_title" not in cols:
-        con.execute("ALTER TABLE history ADD COLUMN movie_title TEXT DEFAULT 'General'")
+    try:
+        con = sqlite3.connect(DB_PATH)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                movie_title TEXT DEFAULT 'General',
+                review TEXT NOT NULL,
+                sentiment TEXT NOT NULL,
+                confidence REAL,
+                model_used TEXT
+            )
+        """)
         con.commit()
-    con.close()
+        cursor = con.cursor()
+        cursor.execute("PRAGMA table_info(history)")
+        cols = [c[1] for c in cursor.fetchall()]
+        if "movie_title" not in cols:
+            con.execute("ALTER TABLE history ADD COLUMN movie_title TEXT DEFAULT 'General'")
+            con.commit()
+        con.close()
+    except sqlite3.DatabaseError:
+        # If the database file is corrupted or unreadable, remove it and rebuild
+        if os.path.exists(DB_PATH):
+            os.remove(DB_PATH)
+        # Retry initialization once more with a fresh file
+        con = sqlite3.connect(DB_PATH)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                movie_title TEXT DEFAULT 'General',
+                review TEXT NOT NULL,
+                sentiment TEXT NOT NULL,
+                confidence REAL,
+                model_used TEXT
+            )
+        """)
+        con.commit()
+        con.close()
 
 def save_to_db(movie_title, review, sentiment, confidence, model_used):
     con = sqlite3.connect(DB_PATH)
