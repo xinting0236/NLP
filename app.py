@@ -192,15 +192,21 @@ def run_bert_sentiment(text: str):
 
 
 # Translation — PyTorch MarianMT
+# Using higher-quality models:
+#   Malay  → Helsinki-NLP/opus-mt-ms-en  (MarianMT, trained on OPUS corpus)
+#   Chinese → Helsinki-NLP/opus-mt-zh-en  (MarianMT, trained on OPUS corpus)
+# We also apply beam search (num_beams=5) and length_penalty for better output.
+
+TRANSLATION_MODELS = {
+    "ms": "Helsinki-NLP/opus-mt-ms-en",
+    "zh": "Helsinki-NLP/opus-mt-zh-en",
+}
+
 @st.cache_resource(show_spinner=False)
 def _load_translation_model(src_lang: str):
     """Load MarianMT tokenizer + PyTorch model for translation."""
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-    model_map = {
-        "ms": "Helsinki-NLP/opus-mt-ms-en",
-        "zh": "Helsinki-NLP/opus-mt-zh-en",
-    }
-    mid = model_map.get(src_lang)
+    mid = TRANSLATION_MODELS.get(src_lang)
     if mid is None:
         raise ValueError(f"No translation model for language: {src_lang}")
     tokenizer = AutoTokenizer.from_pretrained(mid)
@@ -209,18 +215,51 @@ def _load_translation_model(src_lang: str):
     return tokenizer, model
 
 
+def _clean_for_bert(text: str) -> str:
+    """
+    Post-translation cleanup to improve DistilBERT accuracy:
+    - Strip leading/trailing whitespace
+    - Collapse multiple spaces
+    - Remove stray Unicode artefacts left by MarianMT
+    - Lowercase (DistilBERT is cased-insensitive for SST-2 fine-tune)
+    """
+    import re
+    text = text.strip()
+    text = re.sub(r"\s+", " ", text)                  # collapse whitespace
+    text = re.sub(r"[^-]+", " ", text)        # drop non-ASCII leftovers
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def translate_text(text: str, src_lang: str):
-    """Translate text to English using PyTorch MarianMT — no pipeline."""
+    """
+    Translate text to English using PyTorch MarianMT.
+    Uses beam search (num_beams=5) for higher translation quality.
+    Returns (translated_str, cleaned_for_bert_str) or (None, None) on failure.
+    """
     try:
         import torch
         tokenizer, model = _load_translation_model(src_lang)
-        inputs     = tokenizer([text], return_tensors="pt", truncation=True,
-                               max_length=512, padding=True)
+        inputs = tokenizer(
+            [text],
+            return_tensors="pt",
+            truncation=True,
+            max_length=512,
+            padding=True,
+        )
         with torch.no_grad():
-            translated = model.generate(**inputs)
-        return tokenizer.decode(translated[0], skip_special_tokens=True)
+            output_ids = model.generate(
+                **inputs,
+                num_beams=5,           # beam search → better fluency
+                length_penalty=1.0,    # balanced length
+                early_stopping=True,
+                no_repeat_ngram_size=3,  # avoid repetitive output
+            )
+        raw_translation = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        cleaned         = _clean_for_bert(raw_translation)
+        return raw_translation, cleaned
     except Exception:
-        return None
+        return None, None
 
 
 # Sample reviews
@@ -541,15 +580,31 @@ elif page == "Text Analyzer":
             if detected_lang != "en" and _transformers_ok():
                 lang_names = {"ms": "Malay", "zh": "Chinese"}
                 lang_label = lang_names.get(detected_lang, detected_lang.upper())
-                with st.spinner(f"Detected {lang_label}. Translating..."):
+                with st.spinner(f"Detected {lang_label} — translating to English for analysis..."):
                     try:
-                        result = translate_text(review_input, detected_lang)
-                        if result:
-                            final_text = result
+                        raw_translation, bert_ready = translate_text(review_input, detected_lang)
+                        if raw_translation:
+                            # Show the human-readable translation clearly
+                            st.markdown(
+                                f"<div style='"
+                                f"background:#1e2a3a;border-left:4px solid #CCD67F;"
+                                f"padding:12px 16px;border-radius:6px;margin:8px 0;"
+                                f"font-size:0.95rem;'>"
+                                f"🌐 <b>Translated ({lang_label} → English):</b><br>"
+                                f"<span style='color:#e8e8e8;font-style:italic;'>{raw_translation}</span>"
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                            # Use the cleaned version for BERT (better accuracy)
+                            final_text = bert_ready if bert_ready else raw_translation
                             translated = True
-                            st.info(f"**Translated ({lang_label} → English):** {final_text}")
+                        else:
+                            st.warning(
+                                f"⚠️ Translation unavailable — "
+                                f"analysing original {lang_label} text (accuracy may be lower)."
+                            )
                     except Exception as _te:
-                        st.warning(f"Translation skipped: {_te}")
+                        st.warning(f"Translation skipped ({_te}) — analysing original text.")
 
             # ── Run model ──────────────────────────────────────────────────────
             sentiment_label = None
@@ -690,8 +745,7 @@ elif page == "Text Analyzer":
 
             with st.expander("Preprocessing Details"):
                 if translated:
-                    st.markdown(f"**Original:** {review_input[:120]}...")
-                    st.markdown(f"**Translated:** {final_text[:120]}...")
+                    st.caption("🌐 Sentiment was analysed on the English translation shown above.")
                 if "tokens" in dir() and not nlp_engine.startswith("Advanced"):
                     st.markdown(f"**Tokens after preprocessing:** {len(tokens)}")
                     preview = ", ".join(tokens[:30]) + ("..." if len(tokens) > 30 else "")

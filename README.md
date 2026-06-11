@@ -1,57 +1,192 @@
-# Movie Review Sentiment Detector
+## Project Overview
 
-A multi-page Streamlit app that classifies IMDB movie reviews as Positive or Negative using NLP and Machine Learning.
+**Theme:** Movie Review Sentiment Detector (Theme 3)  
+**Dataset:** IMDB 50,000 Movie Reviews  
+**Task:** Binary sentiment classification — Positive / Negative
 
-**Link**: https://nlp-project-f5epw6kjh2hsyzsh34xzba.streamlit.app/
 
-## Features
-- Classical ML: SVM + TF-IDF (best model, ~90% accuracy)
-- Advanced NLP: DistilBERT transformer (bonus)
-- Multi-language: auto-detects and translates Malay/Chinese
-- TMDb API: live movie poster fetching
-- Interactive visualizations: word clouds, confusion matrix, model comparison, top frequency words, class distribution 
-- SQLite history database
+## Team Members
 
-## Setup (Local)
+| Name | Role |
+|------|------|
+| Lavinia Mary | Data Collection, Preparation & Visualizations |
+| Bong Xin Ting | Text Processing & NLP Pipeline |
+| Jessie Moh | Web Application (Streamlit) |
 
-```bash
-pip install -r requirements.txt
-python generate_assets.py   # run once — generates all charts
-streamlit run app.py
-```
+---
 
-Place these files in the same folder as `app.py`:
-- `IMDB Dataset.csv`
-- `best_model.pkl`
-- `tfidf_vectorizer.pkl`
+**Link:** https://nlp-project-f5epw6kjh2hsyzsh34xzba.streamlit.app/
 
-## Deploy to Streamlit Cloud
 
-1. Push this repo to GitHub (exclude large files via `.gitignore`)
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Click **New app** → select your repo → set `app.py` as main file
-4. Add secrets in **Settings → Secrets** if needed
-5. Click **Deploy**
+### What This App Does
+- Users paste or type a movie review → App predicts sentiment instantly
+- Displays confidence score and an animated gauge chart
+- Shows which words drove the prediction (Word Influence Profiler)
+- Fetches the movie poster live from the OMDb API
+- Auto-detects and translates Malay/Chinese reviews to English
+- Supports DistilBERT transformer as an alternative model engine
+- Stores every prediction in a local SQLite history database
 
-> **Note:** `IMDB Dataset.csv`, `best_model.pkl`, and `tfidf_vectorizer.pkl` are too large for GitHub.
-> Use [Git LFS](https://git-lfs.github.com/) or host them on Google Drive and load via URL.
+---
+
+## NLP Pipeline
+
+| Step | Method |
+|------|--------|
+| Preprocessing | Lowercase → Remove URLs/HTML → Tokenize → Remove stopwords → Lemmatize |
+| Feature Extraction 1 | TF-IDF (`max_features=20,000`, `ngram_range=(1,2)`, `sublinear_tf=True`) |
+| Feature Extraction 2 | Word2Vec (`vector_size=100`, `window=5`, `min_count=2`, averaged per review) |
+| Model 1 | Naive Bayes — MultinomialNB (TF-IDF) · GaussianNB (Word2Vec) |
+| Model 2 | Linear SVM — LinearSVC (`C=1.0`, `max_iter=2000`) |
+| Best model | SVM (TF-IDF) · ~90% Accuracy, Precision, Recall, F1-Score |
+
+---
+
+## Model Performance
+
+| Model | Accuracy | Precision | Recall | F1-Score |
+|-------|----------|-----------|--------|----------|
+| Naive Bayes (TF-IDF) | 0.8730 | 0.8621 | 0.8880 | 0.8749 |
+| Naive Bayes (Word2Vec) | 0.7559 | 0.7517 | 0.7642 | 0.7579 |
+| **SVM (TF-IDF)** | **0.8973** | **0.8925** | **0.9034** | **0.8979** |
+| SVM (Word2Vec) | 0.8547 | 0.8506 | 0.8606 | 0.8556 |
+
+---
+
+## App Pages
+
+| Page | Features |
+|------|----------|
+| **Home** | Project description, problem statement, how-to guide, team members |
+| **Text Analyzer** | Text input, model selection (Classical ML / BERT), auto-translation, prediction result, confidence gauge, movie poster, word influence profiler, multilingual sample reviews |
+| **Data Explorer** | Dataset statistics, keyword search, sentiment distribution (interactive Plotly), review history with filters |
+| **Visualizations** | Interactive word clouds, top 20 words, class distribution, review length distribution, confusion matrix, model comparison — all as interactive Plotly HTML charts |
+| **Model Info** | Explanations of all 4 models + DistilBERT bonus, performance metrics table, training details |
+
+---
+
+## Visualizations
+
+| # | Visualization | Type |
+|---|---------------|------|
+| 1 | Word Cloud — Positive Reviews | Interactive Plotly HTML |
+| 2 | Word Cloud — Negative Reviews | Interactive Plotly HTML |
+| 3 | Top 20 Most Frequent Words (Positive & Negative) | Interactive Plotly bar |
+| 4 | Class Distribution | Interactive Plotly bar |
+| 5 | Confusion Matrix | Interactive Plotly heatmap |
+| 6 | Model Comparison (Accuracy/Precision/Recall/F1) | Interactive Plotly grouped bar |
+| **Bonus** | Review Length Distribution by Sentiment | Interactive Plotly histogram |
+
+---
+
+## Extra Features
+
+| Bonus | Implementation | Marks |
+|-------|---------------|-------|
+| Deploy to Streamlit Cloud | GitHub → share.streamlit.io | +5 |
+| Exceptional visualizations | 7 interactive Plotly HTML charts with detailed insights | +3 |
+| Advanced NLP (BERT) | DistilBERT (`distilbert-base-uncased-finetuned-sst-2-english`) | +5 |
+| Multi-language support | `langdetect` + Helsinki-NLP translation models (Malay/Chinese → English) | +3 |
+
+---
 
 ## Project Structure
 
 ```
-├── app.py                  # Main Streamlit app
-├── generate_assets.py      # One-time chart generator
-├── requirements.txt
-├── sample_reviews.csv
+project/
+├── app.py                          # Main Streamlit application
+├── generate_assets.py              # One-time chart generator (run before app)
+├── requirements.txt                # Python dependencies
+├── sample_reviews.csv              # Sample test data (20 reviews)
+├── README.md                       # This file
+├── .gitignore                      # Excludes large files from Git
+│
 ├── .streamlit/
-│   └── config.toml         # Theme config
-├── assets/                 # Generated HTML charts + model_metrics.csv
-└── README.md
+│   └── config.toml                 # Streamlit theme configuration
+│
+├── assets/                         # Generated by generate_assets.py
+│   ├── wordcloud_positive.html
+│   ├── wordcloud_negative.html
+│   ├── top_words_positive.html
+│   ├── top_words_negative.html
+│   ├── class_distribution.html
+│   ├── review_length_distribution.html
+│   ├── confusion_matrix.html
+│   ├── model_comparison.html
+│   └── model_metrics.csv
+│
+├── data/                           # Place dataset here
+│   └── IMDB Dataset.csv            # 50k reviews (not in Git — too large)
+│
+├── models/                         # Place saved models here
+│   ├── best_model.pkl              # Best trained model (not in Git)
+│   └── tfidf_vectorizer.pkl        # TF-IDF vectorizer (not in Git)
+│
+├── notebooks/
+│   └── nlpproject.ipynb            # Jupyter notebook (model development)
+│
+└── history_reviews.db              # SQLite DB (auto-created on first run)
 ```
 
-## Team
-| Member | Role |
-|--------|------|
-| Lavinia Mary | Data Collection & Preparation & Visualizations |
-| Bong Xin Ting | Text Processing & NLP |
-| Jessie Moh | Web Application |
+---
+
+## Local Setup
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/jmnj2003/NLP-project.git
+cd <repo-name>
+```
+
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+> **Note:** `transformers` and `torch` are ~2 GB. If you don't need BERT, comment them out in `requirements.txt`.
+
+### 3. Download NLTK data (first run only)
+```python
+python -c "import nltk; nltk.download('all')"
+```
+
+### 4. Place large files
+Copy these into the project root (they are excluded from Git via `.gitignore`):
+- `IMDB Dataset.csv` — [Download from Kaggle](https://www.kaggle.com/datasets/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews)
+- `best_model.pkl` — saved by the Jupyter notebook
+- `tfidf_vectorizer.pkl` — saved by the Jupyter notebook
+
+### 5. Generate visualization assets (run ONCE)
+```bash
+python generate_assets.py
+```
+This preprocesses the dataset, trains all 4 models, and saves all 8 interactive HTML charts + `model_metrics.csv` into the `assets/` folder. Takes ~5–10 minutes.
+
+### 6. Run the app
+```bash
+streamlit run app.py
+```
+
+---
+
+## Deploy to Streamlit Cloud (+5 bonus marks)
+
+1. Push this repository to GitHub (large files are excluded by `.gitignore`)
+2. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**
+3. Select your repository → set **Main file** to `app.py` → **Deploy**
+
+### Handling large files on Streamlit Cloud
+The `IMDB Dataset.csv` (~66 MB), `best_model.pkl`, and `tfidf_vectorizer.pkl` are too large for GitHub's 100 MB limit. Two options:
+
+**Option A — Git LFS (recommended)**
+```bash
+git lfs install
+git lfs track "*.pkl" "*.csv"
+git add .gitattributes
+git add best_model.pkl tfidf_vectorizer.pkl "IMDB Dataset.csv"
+git commit -m "Add large files via LFS"
+git push
+```
+
+**Option B — Skip dataset on Cloud**  
+The app works without the dataset (Data Explorer shows a warning). Only `best_model.pkl` and `tfidf_vectorizer.pkl` are required. Host them on Google Drive and load via URL, or commit them directly if under 100 MB.
