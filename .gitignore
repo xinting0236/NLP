@@ -1,7 +1,21 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.egg-info/
 .env
-.ipynb_checkpoints/
-.vscode/
 venv/
-env/
+.venv/
+
+# Data & Models (too large for GitHub — add manually or use Git LFS)
+IMDB Dataset.csv
+best_model.pkl
+tfidf_vectorizer.pkl
+history_reviews.db
+
+# Assets are generated locally — commit only if you want them on the cloud
+# assets/
+
+# OS
+.DS_Store
+Thumbs.db
