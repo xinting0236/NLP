@@ -13,4 +13,4 @@ requests>=2.31.0
 langdetect>=1.0.9
 transformers>=4.36.0
 torch>=2.0.0
-deep-translator>=1.11.0
+deep-translator==1.11.4
