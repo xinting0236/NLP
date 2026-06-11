@@ -1,0 +1,21 @@
+-- ==========================================
+-- SQLite Database Schema
+-- Movie Review Sentiment Detector History
+-- ==========================================
+
+-- Table structure for tracked application runs and test history
+CREATE TABLE history (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp   TEXT NOT NULL,
+    movie_title TEXT DEFAULT 'General',
+    review      TEXT NOT NULL,
+    sentiment   TEXT NOT NULL,
+    confidence  REAL,
+    model_used  TEXT
+);
+
+-- Table structure for internal SQLite autoincrement sequence tracking
+CREATE TABLE sqlite_sequence (
+    name,
+    seq
+);
