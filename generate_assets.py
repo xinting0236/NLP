@@ -1,11 +1,6 @@
 """
 generate_assets.py  —  Run ONCE before launching app.py
 Generates all interactive Plotly HTML charts + model_metrics.csv
-Matches notebook (Copy_of_nlpproject_with_visualization___1__latest.ipynb) exactly.
-
-Usage:
-    python generate_assets.py
-
 Output folder: assets/
 """
 
@@ -36,9 +31,11 @@ warnings.filterwarnings("ignore")
 for pkg in ["stopwords", "wordnet", "punkt", "punkt_tab", "omw-1.4"]:
     nltk.download(pkg, quiet=True)
 
-os.makedirs("assets", exist_ok=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+os.makedirs(ASSETS_DIR, exist_ok=True)
 
-# ── Preprocessing (identical to notebook) ─────────────────────────────────────
+# Preprocessing (identical to notebook)
 stop_words = set(stopwords.words("english"))
 lemmatizer = WordNetLemmatizer()
 
@@ -52,9 +49,9 @@ def preprocess(text):
     tokens = [lemmatizer.lemmatize(t) for t in tokens]
     return tokens
 
-# ── Load dataset ───────────────────────────────────────────────────────────────
+# Load dataset
 print("Loading dataset...")
-df = pd.read_csv("IMDB Dataset.csv")
+df = pd.read_csv(os.path.join(BASE_DIR, "IMDB Dataset.csv"))
 df["label"] = df["sentiment"].map({"positive": 1, "negative": 0})
 
 print("Preprocessing reviews (this takes a few minutes)...")
@@ -63,7 +60,7 @@ df["cleaned_review"] = df["tokens"].apply(lambda t: " ".join(t))
 df["cleaned_length"] = df["cleaned_review"].apply(lambda x: len(x.split()))
 print(f"Done. {len(df):,} reviews processed.")
 
-# ── Train / test split (matches notebook: 80/20, stratified, random_state=42) ─
+# Train / test split
 X_raw  = df["cleaned_review"]
 y      = df["label"]
 tokens = df["tokens"]
@@ -74,13 +71,13 @@ X_train_raw, X_test_raw, y_train, y_test = train_test_split(
 train_tokens = tokens[X_train_raw.index]
 test_tokens  = tokens[X_test_raw.index]
 
-# ── TF-IDF (matches notebook) ─────────────────────────────────────────────────
+# TF-IDF (matches notebook)
 print("Building TF-IDF features...")
 tfidf = TfidfVectorizer(max_features=20_000, ngram_range=(1,2), sublinear_tf=True)
 X_train_tfidf = tfidf.fit_transform(X_train_raw)
 X_test_tfidf  = tfidf.transform(X_test_raw)
 
-# ── Word2Vec (matches notebook) ───────────────────────────────────────────────
+# Word2Vec (matches notebook)
 print("Training Word2Vec...")
 from gensim.models import Word2Vec
 w2v = Word2Vec(sentences=list(train_tokens),
@@ -94,7 +91,7 @@ def review_to_vec(toks, model):
 X_train_w2v = np.vstack([review_to_vec(t, w2v) for t in train_tokens])
 X_test_w2v  = np.vstack([review_to_vec(t, w2v) for t in test_tokens])
 
-# ── Train all 4 models ────────────────────────────────────────────────────────
+# Train all 4 models
 print("Training all 4 models...")
 all_results = []
 
@@ -121,12 +118,12 @@ comparison_df = pd.DataFrame([{k:v for k,v in r.items() if not k.startswith("_")
 print(comparison_df[["Model","Accuracy","Precision","Recall","F1-Score"]].to_string(index=False, float_format="{:.4f}".format))
 
 # Save model_metrics.csv
-comparison_df[["Model","Accuracy","Precision","Recall","F1-Score"]].to_csv("assets/model_metrics.csv", index=False)
+comparison_df[["Model","Accuracy","Precision","Recall","F1-Score"]].to_csv(os.path.join(ASSETS_DIR, "model_metrics.csv"), index=False)
 print("Saved: assets/model_metrics.csv")
 
 best_result = max(all_results, key=lambda r: r["F1-Score"])
 
-# ── CHART 1: Word Cloud (interactive) ─────────────────────────────────────────
+# CHART 1: Word Cloud (interactive)
 print("Generating interactive word clouds...")
 try:
     from wordcloud import WordCloud
@@ -236,13 +233,13 @@ try:
 
     fig_pos = make_interactive_wordcloud(pos_freq, "winter", "#ffffff", "Interactive Word Cloud — Positive Movie Reviews")
     fig_neg = make_interactive_wordcloud(neg_freq, "YlOrRd", "#ffffff", "Interactive Word Cloud — Negative Movie Reviews")
-    fig_pos.write_html("assets/wordcloud_positive.html", include_plotlyjs="cdn")
-    fig_neg.write_html("assets/wordcloud_negative.html", include_plotlyjs="cdn")
+    fig_pos.write_html(os.path.join(ASSETS_DIR, "wordcloud_positive.html"), include_plotlyjs="cdn")
+    fig_neg.write_html(os.path.join(ASSETS_DIR, "wordcloud_negative.html"), include_plotlyjs="cdn")
     print("Saved: assets/wordcloud_positive.html, wordcloud_negative.html")
 except ImportError:
     print("  wordcloud not installed — skipping (pip install wordcloud)")
 
-# ── CHART 2: Top 20 words (uses tokens, matches notebook cells 45-46) ─────────
+# CHART 2: Top 20 words (uses tokens, matches notebook cells 45-46)
 print("Generating top words charts...")
 
 positive_tokens = []
@@ -255,7 +252,7 @@ fig_tp = px.bar(top_pos, x="Frequency", y="Word", orientation="h",
                 title="Top 20 Most Frequent Words — Positive Reviews")
 fig_tp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                      font_color="#2b1a0e", height=500)
-fig_tp.write_html("assets/top_words_positive.html", include_plotlyjs="cdn")
+fig_tp.write_html(os.path.join(ASSETS_DIR, "top_words_positive.html"), include_plotlyjs="cdn")
 
 negative_tokens = []
 for toks in df[df["sentiment"]=="negative"]["tokens"]:
@@ -267,12 +264,12 @@ fig_tn = px.bar(top_neg, x="Frequency", y="Word", orientation="h",
                 title="Top 20 Most Frequent Words — Negative Reviews")
 fig_tn.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                      font_color="#2b1a0e", height=500)
-fig_tn.write_html("assets/top_words_negative.html", include_plotlyjs="cdn")
+fig_tn.write_html(os.path.join(ASSETS_DIR, "top_words_negative.html"), include_plotlyjs="cdn")
 print(f"  Top positive word: {top_pos.iloc[-1]['Word']} ({top_pos.iloc[-1]['Frequency']:,})")
 print(f"  Top negative word: {top_neg.iloc[-1]['Word']} ({top_neg.iloc[-1]['Frequency']:,})")
 print("Saved: assets/top_words_positive.html, top_words_negative.html")
 
-# ── CHART 3: Class distribution (matches notebook cell 38) ────────────────────
+# CHART 3: Class distribution
 print("Generating class distribution chart...")
 sentiment_counts = df["sentiment"].value_counts().reset_index()
 sentiment_counts.columns = ["sentiment", "count"]
@@ -285,10 +282,10 @@ fig_dist = px.bar(sentiment_counts, x="sentiment", y="count",
 fig_dist.update_traces(textposition="outside")
 fig_dist.update_layout(showlegend=False, paper_bgcolor="rgba(0,0,0,0)",
                        plot_bgcolor="rgba(0,0,0,0)", font_color="#2b1a0e", height=450)
-fig_dist.write_html("assets/class_distribution.html", include_plotlyjs="cdn")
+fig_dist.write_html(os.path.join(ASSETS_DIR, "class_distribution.html"), include_plotlyjs="cdn")
 print("Saved: assets/class_distribution.html")
 
-# ── CHART 4: Review length distribution (matches notebook cell 48) ────────────
+# CHART 4: Review length distribution (matches notebook cell 48)
 print("Generating review length distribution chart...")
 fig_len = go.Figure()
 fig_len.add_trace(go.Histogram(
@@ -311,10 +308,10 @@ fig_len.update_layout(
     font_color="#2b1a0e",
     height=480,
 )
-fig_len.write_html("assets/review_length_distribution.html", include_plotlyjs="cdn")
+fig_len.write_html(os.path.join(ASSETS_DIR, "review_length_distribution.html"), include_plotlyjs="cdn")
 print("Saved: assets/review_length_distribution.html")
 
-# ── CHART 5: Confusion matrix (matches notebook cell 41) ──────────────────────
+# CHART 5: Confusion matrix (matches notebook cell 41)
 print("Generating confusion matrix chart...")
 best_predictions = best_result["_y_pred"]
 cm = confusion_matrix(y_test, best_predictions)
@@ -331,10 +328,10 @@ fig_cm.update_layout(
     font_color="#2b1a0e",
     height=480,
 )
-fig_cm.write_html("assets/confusion_matrix.html", include_plotlyjs="cdn")
+fig_cm.write_html(os.path.join(ASSETS_DIR, "confusion_matrix.html"), include_plotlyjs="cdn")
 print("Saved: assets/confusion_matrix.html")
 
-# ── CHART 6: Model comparison (matches notebook cell 43) ──────────────────────
+# CHART 6: Model comparison (matches notebook cell 43)
 print("Generating model comparison chart...")
 metrics_long = comparison_df[["Model","Accuracy","Precision","Recall","F1-Score"]].melt(
     id_vars="Model", var_name="Metric", value_name="Score"
@@ -353,7 +350,7 @@ fig_mc.update_layout(
     font_color="#2b1a0e",
     height=500,
 )
-fig_mc.write_html("assets/model_comparison.html", include_plotlyjs="cdn")
+fig_mc.write_html(os.path.join(ASSETS_DIR, "model_comparison.html"), include_plotlyjs="cdn")
 print("Saved: assets/model_comparison.html")
 
 best_model_name = comparison_df.sort_values("F1-Score", ascending=False).iloc[0]["Model"]
