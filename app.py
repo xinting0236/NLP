@@ -356,18 +356,18 @@ def preprocess(text):
 # Load models
 @st.cache_resource
 def load_models():
-    required = ["best_model.pkl","tfidf_vectorizer.pkl"]
+    required = ["models/best_model.pkl","models/tfidf_vectorizer.pkl"]
     missing  = [f for f in required if not os.path.exists(f)]
     if missing:
         return None, None, f"Missing: {', '.join(missing)}"
     try:
-        return joblib.load("best_model.pkl"), joblib.load("tfidf_vectorizer.pkl"), None
+        return joblib.load("models/best_model.pkl"), joblib.load("models/tfidf_vectorizer.pkl"), None
     except Exception as e:
         return None, None, str(e)
 
 @st.cache_data
 def load_dataset():
-    path = "IMDB Dataset.csv"
+    path = "data/IMDB Dataset.csv"
     if not os.path.exists(path):
         return None
     df = pd.read_csv(path)

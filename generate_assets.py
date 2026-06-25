@@ -51,7 +51,7 @@ def preprocess(text):
 
 # Load dataset
 print("Loading dataset...")
-df = pd.read_csv(os.path.join(BASE_DIR, "IMDB Dataset.csv"))
+df = pd.read_csv(os.path.join(BASE_DIR, "data", "IMDB Dataset.csv"))
 df["label"] = df["sentiment"].map({"positive": 1, "negative": 0})
 
 print("Preprocessing reviews (this takes a few minutes)...")
@@ -287,15 +287,35 @@ print("Saved: assets/class_distribution.html")
 
 # CHART 4: Review length distribution (matches notebook cell 48)
 print("Generating review length distribution chart...")
+max_len = df["cleaned_length"].quantile(0.99)
+bin_size = 10
+
 fig_len = go.Figure()
+
 fig_len.add_trace(go.Histogram(
-    x=df[df["sentiment"]=="positive"]["cleaned_length"],
-    name="Positive", marker_color="#66c2a5", opacity=0.75, nbinsx=50
+    x=df[df["sentiment"] == "positive"]["cleaned_length"],
+    name="Positive",
+    marker_color="#66c2a5",
+    opacity=0.6,
+    xbins=dict(
+        start=0,
+        end=max_len,
+        size=bin_size
+    )
 ))
+
 fig_len.add_trace(go.Histogram(
-    x=df[df["sentiment"]=="negative"]["cleaned_length"],
-    name="Negative", marker_color="#fc8d62", opacity=0.75, nbinsx=50
+    x=df[df["sentiment"] == "negative"]["cleaned_length"],
+    name="Negative",
+    marker_color="#fc8d62",
+    opacity=0.6,
+    xbins=dict(
+        start=0,
+        end=max_len,
+        size=bin_size
+    )
 ))
+
 fig_len.update_layout(
     barmode="overlay",
     title="Review Length Distribution by Sentiment",
@@ -303,11 +323,12 @@ fig_len.update_layout(
     yaxis_title="Number of Reviews",
     legend_title="Sentiment",
     hovermode="x unified",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font_color="#2b1a0e",
-    height=480,
+    template="plotly_white"
 )
+
+fig_len.update_xaxes(range=[0, max_len])
+
+fig_len.show()
 fig_len.write_html(os.path.join(ASSETS_DIR, "review_length_distribution.html"), include_plotlyjs="cdn")
 print("Saved: assets/review_length_distribution.html")
 
