@@ -327,8 +327,6 @@ fig_len.update_layout(
 )
 
 fig_len.update_xaxes(range=[0, max_len])
-
-fig_len.show()
 fig_len.write_html(os.path.join(ASSETS_DIR, "review_length_distribution.html"), include_plotlyjs="cdn")
 print("Saved: assets/review_length_distribution.html")
 
