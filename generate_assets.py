@@ -71,47 +71,71 @@ X_train_raw, X_test_raw, y_train, y_test = train_test_split(
 train_tokens = tokens[X_train_raw.index]
 test_tokens  = tokens[X_test_raw.index]
 
-# TF-IDF (matches notebook)
-print("Building TF-IDF features...")
-tfidf = TfidfVectorizer(max_features=20_000, ngram_range=(1,2), sublinear_tf=True)
-X_train_tfidf = tfidf.fit_transform(X_train_raw)
-X_test_tfidf  = tfidf.transform(X_test_raw)
+# TF-IDF 
+print("Loading TF-IDF vectorizer...")
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+tfidf = joblib.load(os.path.join(MODEL_DIR, "tfidf_vectorizer.pkl"))
+X_test_tfidf = tfidf.transform(X_test_raw)
 
-# Word2Vec (matches notebook)
-print("Training Word2Vec...")
-from gensim.models import Word2Vec
-w2v = Word2Vec(sentences=list(train_tokens),
-               vector_size=100, window=5, min_count=2,
-               workers=4, epochs=5, seed=42)
+# Word2Vec
+print("Loading Word2Vec model...")
+w2v = joblib.load(os.path.join(MODEL_DIR, "w2v_model.pkl"))
 
 def review_to_vec(toks, model):
     vecs = [model.wv[t] for t in toks if t in model.wv]
     return np.mean(vecs, axis=0) if vecs else np.zeros(model.vector_size)
 
-X_train_w2v = np.vstack([review_to_vec(t, w2v) for t in train_tokens])
 X_test_w2v  = np.vstack([review_to_vec(t, w2v) for t in test_tokens])
 
-# Train all 4 models
-print("Training all 4 models...")
-all_results = []
+# Loading all 4 models
+print("Loading trained models...")
 
-def evaluate_model(name, clf, X_tr, X_te, y_tr, y_te):
-    clf.fit(X_tr, y_tr)
-    y_pred = clf.predict(X_te)
+nb_tfidf_model = joblib.load(os.path.join(MODEL_DIR, "nb_tfidf.pkl"))
+nb_w2v_model = joblib.load(os.path.join(MODEL_DIR, "nb_w2v.pkl"))
+svm_tfidf_model = joblib.load(os.path.join(MODEL_DIR, "svm_tfidf.pkl"))
+svm_w2v_model = joblib.load(os.path.join(MODEL_DIR, "svm_w2v.pkl"))
+
+def evaluate_loaded(name, model, X_test, y_test):
+    y_pred = model.predict(X_test)
+
     return {
-        "Model":     name,
-        "Accuracy":  accuracy_score(y_te, y_pred),
-        "Precision": precision_score(y_te, y_pred, zero_division=0),
-        "Recall":    recall_score(y_te, y_pred, zero_division=0),
-        "F1-Score":  f1_score(y_te, y_pred, zero_division=0),
-        "_model":    clf,
-        "_y_pred":   y_pred,
+        "Model": name,
+        "Accuracy": accuracy_score(y_test, y_pred),
+        "Precision": precision_score(y_test, y_pred),
+        "Recall": recall_score(y_test, y_pred),
+        "F1-Score": f1_score(y_test, y_pred),
+        "_model": model,
+        "_y_pred": y_pred,
     }
 
-nb_tfidf  = evaluate_model("Naive Bayes (TF-IDF)",  MultinomialNB(alpha=0.1),                     X_train_tfidf, X_test_tfidf, y_train, y_test)
-nb_w2v    = evaluate_model("Naive Bayes (Word2Vec)", GaussianNB(),                                 X_train_w2v,   X_test_w2v,   y_train, y_test)
-svm_tfidf = evaluate_model("SVM (TF-IDF)",           LinearSVC(C=1.0,max_iter=2000,random_state=42), X_train_tfidf, X_test_tfidf, y_train, y_test)
-svm_w2v   = evaluate_model("SVM (Word2Vec)",         LinearSVC(C=1.0,max_iter=2000,random_state=42), X_train_w2v,   X_test_w2v,   y_train, y_test)
+nb_tfidf = evaluate_loaded(
+    "Naive Bayes (TF-IDF)",
+    nb_tfidf_model,
+    X_test_tfidf,
+    y_test
+)
+
+nb_w2v = evaluate_loaded(
+    "Naive Bayes (Word2Vec)",
+    nb_w2v_model,
+    X_test_w2v,
+    y_test
+)
+
+svm_tfidf = evaluate_loaded(
+    "SVM (TF-IDF)",
+    svm_tfidf_model,
+    X_test_tfidf,
+    y_test
+)
+
+svm_w2v = evaluate_loaded(
+    "SVM (Word2Vec)",
+    svm_w2v_model,
+    X_test_w2v,
+    y_test
+)
+
 all_results = [nb_tfidf, nb_w2v, svm_tfidf, svm_w2v]
 
 comparison_df = pd.DataFrame([{k:v for k,v in r.items() if not k.startswith("_")} for r in all_results])
